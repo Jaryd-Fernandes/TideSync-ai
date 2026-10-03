@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TideSync AI — Forecast Demand. Maximize Revenue.</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Marked.js (markdown rendering) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+
+  <style>
+    /* ── Reset & Variables ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ocean: #1B3B6F;
+      --ocean-light: #234d8f;
+      --ocean-dark: #122848;
+      --ocean-faint: #e8eef6;
+      --coral: #F97068;
+      --coral-light: #ff8f88;
+      --coral-dark: #e05048;
+      --sand: #F5F5F5;
+      --white: #ffffff;
+      --text-dark: #1a2535;
+      --text-mid: #4a5568;
+      --text-light: #718096;
+      --border: #e2e8f0;
+      --success: #38a169;
+      --warning: #d69e2e;
+      --danger: #e53e3e;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+      --shadow-md: 0 4px 16px rgba(27,59,111,.12);
+      --shadow-lg: 0 8px 32px rgba(27,59,111,.18);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --sidebar-w: 240px;
+    }
+
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background: var(--sand);
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    h1, h2, h3, h4, h5 { font-family: 'Montserrat', sans-serif; }
+
+    /* ── API Key Modal ───────────────────────────────────────────────── */
+    #api-modal {
+      position: fixed; inset: 0;
+      background: rgba(18,40,72,.85);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-box {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 40px;
+      width: 440px;
+      max-width: 90vw;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-logo { font-size: 40px; margin-bottom: 12px; }
+    .modal-title { font-family: 'Montserrat', sans-serif; font-size: 22px; font-weight: 800; color: var(--ocean-dark); }
+    .modal-sub { font-size: 13px; color: var(--text-light); margin-top: 6px; margin-bottom: 28px; line-height: 1.6; }
+
+    .modal-input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 14px;
+      font-family: 'Open Sans', sans-serif;
+      outline: none;
+      color: var(--text-dark);
+      transition: border-color .15s;
+      margin-bottom: 12px;
+    }
+
+    .modal-input:focus { border-color: var(--ocean); }
+
+    .modal-btn {
+      width: 100%;
+      background: var(--coral);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 13px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .modal-btn:hover { background: var(--coral-dark); }
+    .modal-hint { font-size: 11px; color: var(--text-light); margin-top: 14px; }
+    .modal-hint a { color: var(--ocean); }
+    .modal-error { color: var(--danger); font-size: 12px; margin-bottom: 10px; display: none; }
+
+    /* ── Sidebar ────────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--ocean-dark);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+    }
+
+    .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.08); }
+
+    .sidebar-logo .brand { display: flex; align-items: center; gap: 10px; }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--coral);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-text { color: var(--white); }
+    .logo-text .name { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; letter-spacing: .3px; }
+    .logo-text .tagline { font-size: 10px; color: rgba(255,255,255,.5); font-weight: 300; margin-top: 1px; }
+
+    .sidebar-hotel { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.08); }
+
+    .hotel-label { font-size: 10px; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 600; }
+    .hotel-selector {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      color: var(--white);
+      width: 100%;
+    }
+
+    .hotel-name { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 13px; color: var(--white); }
+    .hotel-sub { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
+
+    .sidebar-nav { padding: 16px 0; flex: 1; overflow-y: auto; }
+
+    .nav-section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: rgba(255,255,255,.3);
+      padding: 8px 20px 6px;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px;
+      color: rgba(255,255,255,.6);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,.05); color: var(--white); }
+    .nav-item.active { background: rgba(249,112,104,.12); color: var(--coral); border-left-color: var(--coral); }
+    .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.08); }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      background: #48bb78;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    .sidebar-footer .status-text { font-size: 11px; color: rgba(255,255,255,.4); }
+
+    /* ── Main Layout ────────────────────────────────────────────────── */
+    .main { flex: 1; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+
+    /* ── Top Bar ───────────────────────────────────────────────────── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+
+    .topbar-left h2 { font-size: 16px; font-weight: 700; color: var(--ocean-dark); }
+    .topbar-left p { font-size: 12px; color: var(--text-light); margin-top: 1px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+    .date-badge {
+      background: var(--ocean-faint); color: var(--ocean);
+      font-size: 12px; font-weight: 600;
+      padding: 5px 12px; border-radius: 20px;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .btn-primary {
+      background: var(--coral); color: var(--white);
+      border: none; padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .btn-primary:hover { background: var(--coral-dark); }
+
+    /* ── Content Area ──────────────────────────────────────────────── */
+    .content { padding: 24px 28px; flex: 1; }
+
+    /* ── KPI Cards ─────────────────────────────────────────────────── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+
+    .kpi-card {
+      background: var(--white); border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+      position: relative; overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+    }
+
+    .kpi-card.blue::before { background: var(--ocean); }
+    .kpi-card.coral::before { background: var(--coral); }
+    .kpi-card.green::before { background: var(--success); }
+    .kpi-card.gold::before { background: var(--warning); }
+
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--text-light); margin-bottom: 8px; }
+    .kpi-value { font-family: 'Montserrat', sans-serif; font-size: 26px; font-weight: 800; color: var(--ocean-dark); line-height: 1; }
+    .kpi-sub { font-size: 12px; color: var(--text-light); margin-top: 6px; }
+    .kpi-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px; margin-top: 6px;
+    }
+    .kpi-badge.up { background: #f0fff4; color: var(--success); }
+    .kpi-badge.down { background: #fff5f5; color: var(--danger); }
+    .kpi-badge.neutral { background: var(--ocean-faint); color: var(--ocean); }
+
+    /* ── Grid Layouts ──────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+    /* ── Card ──────────────────────────────────────────────────────── */
+    .card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .card-title { font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 700; color: var(--ocean-dark); }
+    .card-subtitle { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+    .card-body { padding: 20px; }
+
+    /* ── Forecast Tabs ─────────────────────────────────────────────── */
+    .forecast-tabs { display: flex; gap: 8px; }
+
+    .tab-btn {
+      padding: 5px 12px; border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; background: var(--white); color: var(--text-mid);
+      font-family: 'Montserrat', sans-serif; transition: all .15s;
+    }
+
+    .tab-btn.active { background: var(--ocean); color: var(--white); border-color: var(--ocean); }
+
+    /* ── Recommendation Cards ──────────────────────────────────────── */
+    .rec-card {
+      border-radius: var(--radius-sm); padding: 14px 16px;
+      margin-bottom: 12px; display: flex; gap: 12px;
+      align-items: flex-start; border-left: 4px solid;
+    }
+
+    .rec-card.urgent { background: #fff8f7; border-color: var(--coral); }
+    .rec-card.medium { background: #fffdf0; border-color: var(--warning); }
+    .rec-card.info { background: var(--ocean-faint); border-color: var(--ocean); }
+
+    .rec-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .rec-title { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; color: var(--text-dark); }
+    .rec-desc { font-size: 12px; color: var(--text-mid); margin-top: 3px; line-height: 1.5; }
+
+    .rec-tag {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px;
+      padding: 2px 7px; border-radius: 4px; margin-top: 6px;
+    }
+
+    .tag-urgent { background: var(--coral); color: white; }
+    .tag-medium { background: var(--warning); color: white; }
+    .tag-info { background: var(--ocean); color: white; }
+
+    /* ── Heatmap ───────────────────────────────────────────────────── */
+    .heatmap-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin-top: 8px; }
+    .heatmap-month { text-align: center; }
+    .heatmap-label { font-size: 10px; color: var(--text-light); font-weight: 600; margin-bottom: 4px; }
+    .heatmap-cell {
+      height: 36px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: white;
+      cursor: default; transition: transform .1s;
+    }
+    .heatmap-cell:hover { transform: scale(1.08); }
+    .occ-low { background: #bee3f8; color: #2c5282; }
+    .occ-mid { background: #4299e1; }
+    .occ-high { background: var(--ocean); }
+    .occ-peak { background: var(--coral); }
+
+    /* ── Events ────────────────────────────────────────────────────── */
+    .event-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .event-item:last-child { border-bottom: none; }
+    .event-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .event-dot.high { background: var(--coral); }
+    .event-dot.med { background: var(--warning); }
+    .event-name { font-size: 12px; font-weight: 600; color: var(--text-dark); }
+    .event-date { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+    .event-impact { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--success); flex-shrink: 0; }
+
+    /* ── Staffing ──────────────────────────────────────────────────── */
+    .staffing-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .staffing-label { font-size: 12px; color: var(--text-mid); width: 110px; flex-shrink: 0; }
+    .staffing-bar-wrap { flex: 1; height: 18px; background: var(--border); border-radius: 9px; overflow: hidden; }
+    .staffing-bar {
+      height: 100%; border-radius: 9px;
+      display: flex; align-items: center; padding-left: 8px;
+      font-size: 10px; font-weight: 700; color: white;
+      transition: width .6s ease;
+    }
+    .staffing-count { font-size: 12px; font-weight: 700; color: var(--ocean-dark); width: 44px; text-align: right; flex-shrink: 0; }
+
+    /* ── AI Chat Panel ─────────────────────────────────────────────── */
+    #chat-panel {
+      position: fixed; bottom: 24px; right: 24px;
+      width: 400px; height: 560px;
+      background: var(--white); border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      display: flex; flex-direction: column;
+      border: 1px solid var(--border); z-index: 100;
+      transition: all .3s cubic-bezier(.34,1.56,.64,1);
+    }
+
+    #chat-panel.collapsed { height: 56px; overflow: hidden; }
+
+    .chat-header {
+      background: var(--ocean); color: var(--white);
+      padding: 14px 16px;
+      border-radius: 16px 16px 0 0;
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; flex-shrink: 0;
+    }
+
+    #chat-panel.collapsed .chat-header { border-radius: 16px; }
+
+    .chat-header-left { display: flex; align-items: center; gap: 10px; }
+
+    .ai-avatar {
+      width: 32px; height: 32px;
+      background: var(--coral); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .chat-title { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; }
+    .chat-status { font-size: 11px; opacity: .7; }
+
+    .chat-toggle {
+      width: 28px; height: 28px;
+      background: rgba(255,255,255,.15); border: none; border-radius: 6px;
+      color: white; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .chat-messages {
+      flex: 1; overflow-y: auto;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .msg { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.55; }
+
+    .msg.ai {
+      background: var(--ocean-faint); color: var(--text-dark);
+      align-self: flex-start; border-radius: 4px 12px 12px 12px;
+    }
+
+    .msg.user {
+      background: var(--ocean); color: white;
+      align-self: flex-end; border-radius: 12px 4px 12px 12px;
+    }
+
+    .msg.ai ul, .msg.ai ol { padding-left: 16px; }
+    .msg.ai p { margin-bottom: 4px; }
+    .msg.ai strong { color: var(--ocean-dark); }
+
+    .msg-loading {
+      display: flex; gap: 4px; padding: 12px 14px;
+      background: var(--ocean-faint);
+      border-radius: 4px 12px 12px 12px;
+      align-self: flex-start;
+    }
+
+    .msg-loading span {
+      width: 7px; height: 7px; background: var(--ocean);
+      border-radius: 50%; animation: bounce 1.2s infinite;
+    }
+
+    .msg-loading span:nth-child(2) { animation-delay: .2s; }
+    .msg-loading span:nth-child(3) { animation-delay: .4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-6px); }
+    }
+
+    .chat-suggestions { padding: 0 16px 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .suggestion-chip {
+      background: var(--ocean-faint); color: var(--ocean);
+      border: 1px solid rgba(27,59,111,.2); border-radius: 20px;
+      padding: 5px 11px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .15s; font-family: 'Montserrat', sans-serif;
+    }
+
+    .suggestion-chip:hover { background: var(--ocean); color: white; }
+
+    .chat-input-row {
+      padding: 12px 16px; border-top: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+    }
+
+    .chat-input {
+      flex: 1; border: 1px solid var(--border); border-radius: 20px;
+      padding: 8px 14px; font-size: 13px;
+      font-family: 'Open Sans', sans-serif; outline: none;
+      color: var(--text-dark); transition: border-color .15s;
+    }
+
+    .chat-input:focus { border-color: var(--ocean); }
+
+    .chat-send {
+      width: 36px; height: 36px; background: var(--coral);
+      border: none; border-radius: 50%;
+      color: white; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s; flex-shrink: 0;
+    }
+
+    .chat-send:hover { background: var(--coral-dark); }
+    .chat-send:disabled { background: #cbd5e0; cursor: not-allowed; }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+
+    @media (max-width: 1100px) {
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      #chat-panel { width: calc(100vw - 32px); right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── API Key Modal ────────────────────────────────────────────────────── -->
+  <div id="api-modal">
+    <div class="modal-box">
+      <div class="modal-logo">🌊</div>
+      <div class="modal-title">TideSync AI</div>
+      <div class="modal-sub">
+        Enter your Gemini API key to activate the AI assistant.<br>
+        Your key stays in your browser only — never sent anywhere else.
+      </div>
+      <div class="modal-error" id="modal-error">Please paste your API key.</div>
+      <input class="modal-input" id="api-key-input" type="password"
+        placeholder="Paste your Gemini API key here" autocomplete="off"
+        onkeydown="if(event.key==='Enter') saveKey()" />
+      <button class="modal-btn" onclick="saveKey()">🚀 Launch Dashboard</button>
+      <div class="modal-hint">
+        Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="brand">
+        <div class="logo-icon">🌊</div>
+        <div class="logo-text">
+          <div class="name">TideSync AI</div>
+          <div class="tagline">Forecast Demand. Maximize Revenue.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-hotel">
+      <div class="hotel-label">Active Property</div>
+      <div class="hotel-selector">
+        <div class="hotel-name">The Coastal Pearl</div>
+        <div class="hotel-sub">50 Rooms · Coastal Destination</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" data-section="section-kpi"><span class="icon">📊</span> Dashboard</div>
+      <div class="nav-item" data-section="section-forecast"><span class="icon">📅</span> Demand Forecast</div>
+      <div class="nav-item" data-section="section-pricing"><span class="icon">💰</span> Pricing Engine</div>
+
+      <div class="nav-section-label" style="margin-top:8px">Operations</div>
+      <div class="nav-item" data-section="section-staffing"><span class="icon">👥</span> Staff Planner</div>
+      <div class="nav-item" data-section="section-events"><span class="icon">🎪</span> Events Calendar</div>
+      <div class="nav-item" data-section="section-heatmap"><span class="icon">🌤️</span> Weather Intel</div>
+
+      <div class="nav-section-label" style="margin-top:8px">Intelligence</div>
+      <div class="nav-item" data-section="chat"><span class="icon">🤖</span> AI Assistant</div>
+      <div class="nav-item" data-section="section-revenue"><span class="icon">📈</span> Reports</div>
+      <div class="nav-item" data-section="settings"><span class="icon">⚙️</span> Settings</div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="status-dot"></span>
+      <span class="status-text" id="model-status">AI: gemini-3.8-flash · Live</span>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────────────────── -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <h2>Dashboard Overview</h2>
+        <p>Demand insights for The Coastal Pearl · Updated today</p>
+      </div>
+      <div class="topbar-right">
+        <span class="date-badge" id="current-date">Oct 2025</span>
+        <button class="btn-primary" onclick="openChat()">🤖 Ask AI</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- KPI Row -->
+      <div class="kpi-row" id="section-kpi">
+        <div class="kpi-card blue">
+          <div class="kpi-label">Current Occupancy</div>
+          <div class="kpi-value">55%</div>
+          <div class="kpi-sub">October 2025</div>
+          <div class="kpi-badge up">↑ 5% vs last year</div>
+        </div>
+        <div class="kpi-card coral">
+          <div class="kpi-label">Avg Daily Rate</div>
+          <div class="kpi-value">₹4,800</div>
+          <div class="kpi-sub">ADR this month</div>
+          <div class="kpi-badge up">↑ ₹600 forecasted</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">RevPAR</div>
+          <div class="kpi-value">₹2,640</div>
+          <div class="kpi-sub">Revenue per available room</div>
+          <div class="kpi-badge neutral">90-day forecast: ₹6,400</div>
+        </div>
+        <div class="kpi-card gold">
+          <div class="kpi-label">Forecast Accuracy</div>
+          <div class="kpi-value">91%</div>
+          <div class="kpi-sub">30-day model confidence</div>
+          <div class="kpi-badge up">↑ 3% from last cycle</div>
+        </div>
+      </div>
+
+      <!-- Forecast Chart + Events -->
+      <div class="grid-2" id="section-forecast">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Demand Forecast</div>
+              <div class="card-subtitle">Occupancy % projection vs historical</div>
+            </div>
+            <div class="forecast-tabs">
+              <button class="tab-btn active" onclick="switchForecast(30, this)">30d</button>
+              <button class="tab-btn" onclick="switchForecast(60, this)">60d</button>
+              <button class="tab-btn" onclick="switchForecast(90, this)">90d</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <canvas id="forecastChart" height="220"></canvas>
+          </div>
+        </div>
+
+        <div class="card" id="section-events">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Upcoming Demand Drivers</div>
+              <div class="card-subtitle">Events & seasonal triggers</div>
+            </div>
+          </div>
+          <div class="card-body" style="padding-top:8px">
+            <div class="event-item">
+              <div class="event-dot high"></div>
+              <div>
+                <div class="event-name">🪔 Diwali Holiday Season</div>
+                <div class="event-date">Oct 24 – Nov 5, 2025</div>
+              </div>
+              <div class="event-impact">+45% demand</div>
+            </div>
+            <div class="event-item">
+              <div class="event-dot high"></div>
+              <div>
+                <div class="event-name">🎄 Christmas & New Year Peak</div>
+                <div class="event-date">Dec 20, 2025 – Jan 5, 2026</div>
+              </div>
+              <div class="event-impact">+60% demand</div>
+            </div>
+            <div class="event-item">
+              <div class="event-dot med"></div>
+              <div>
+                <div class="event-name">🏛️ Coastal Heritage Walk Week</div>
+                <div class="event-date">Oct 2 – 5, 2025</div>
+              </div>
+              <div class="event-impact">+15% demand</div>
+            </div>
+            <div class="event-item">
+              <div class="event-dot med"></div>
+              <div>
+                <div class="event-name">🎵 Coastal Music Festival</div>
+                <div class="event-date">Jan 15 – 20, 2026</div>
+              </div>
+              <div class="event-impact">+22% demand</div>
+            </div>
+            <div class="event-item">
+              <div class="event-dot high"></div>
+              <div>
+                <div class="event-name">🌸 Spring Break / School Hols</div>
+                <div class="event-date">Mar 20 – Apr 5, 2026</div>
+              </div>
+              <div class="event-impact">+40% demand</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing + Staffing -->
+      <div class="grid-2" id="section-pricing" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">💰 Pricing Recommendations</div>
+              <div class="card-subtitle">AI-generated rate actions for next 90 days</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="rec-card urgent">
+              <div class="rec-icon">🔴</div>
+              <div class="rec-content">
+                <div class="rec-title">Raise rates for Diwali window</div>
+                <div class="rec-desc">Increase ADR to ₹7,500 for Oct 24–Nov 5. Current ₹4,800 is underpricing by ~56%.</div>
+                <span class="rec-tag tag-urgent">Urgent Action</span>
+              </div>
+            </div>
+            <div class="rec-card urgent">
+              <div class="rec-icon">🔴</div>
+              <div class="rec-content">
+                <div class="rec-title">Set peak rates for Christmas/NYE</div>
+                <div class="rec-desc">Target ADR ₹9,000–₹11,000 for Dec 20–Jan 5. Close discounts by Nov 15.</div>
+                <span class="rec-tag tag-urgent">Urgent Action</span>
+              </div>
+            </div>
+            <div class="rec-card medium">
+              <div class="rec-icon">🟡</div>
+              <div class="rec-content">
+                <div class="rec-title">Gradual pre-peak ramp</div>
+                <div class="rec-desc">Increase from ₹5,500 → ₹7,000 across Nov 6–Dec 19 as demand builds.</div>
+                <span class="rec-tag tag-medium">Plan Ahead</span>
+              </div>
+            </div>
+            <div class="rec-card info">
+              <div class="rec-icon">🔵</div>
+              <div class="rec-content">
+                <div class="rec-title">Open early-December direct discount</div>
+                <div class="rec-desc">Drive direct bookings at 8% discount now to lock in early Dec occupancy.</div>
+                <span class="rec-tag tag-info">Opportunity</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="section-staffing">
+          <div class="card-header">
+            <div>
+              <div class="card-title">👥 Staffing Planner</div>
+              <div class="card-subtitle">FTE recommendations · Next 90 days</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="margin-bottom:16px">
+              <div style="font-size:12px;color:var(--text-light);margin-bottom:12px">Current baseline: <strong>18 FTEs</strong></div>
+              <div class="staffing-bar-row">
+                <div class="staffing-label">Oct 2–23</div>
+                <div class="staffing-bar-wrap">
+                  <div class="staffing-bar" style="width:64%;background:var(--ocean)">Maintain</div>
+                </div>
+                <div class="staffing-count">18 FTEs</div>
+              </div>
+              <div class="staffing-bar-row">
+                <div class="staffing-label">Oct 24–Nov 5 🔴</div>
+                <div class="staffing-bar-wrap">
+                  <div class="staffing-bar" style="width:86%;background:var(--coral)">+6 temp</div>
+                </div>
+                <div class="staffing-count">24 FTEs</div>
+              </div>
+              <div class="staffing-bar-row">
+                <div class="staffing-label">Nov 6–Dec 19</div>
+                <div class="staffing-bar-wrap">
+                  <div class="staffing-bar" style="width:75%;background:var(--ocean-light)">Ramp up</div>
+                </div>
+                <div class="staffing-count">20–22 FTEs</div>
+              </div>
+              <div class="staffing-bar-row">
+                <div class="staffing-label">Dec 20–Jan 5 🔴</div>
+                <div class="staffing-bar-wrap">
+                  <div class="staffing-bar" style="width:100%;background:var(--coral)">+10 temp</div>
+                </div>
+                <div class="staffing-count">28 FTEs</div>
+              </div>
+              <div class="staffing-bar-row">
+                <div class="staffing-label">Jan 6–Mar 31</div>
+                <div class="staffing-bar-wrap">
+                  <div class="staffing-bar" style="width:58%;background:#718096">Wind down</div>
+                </div>
+                <div class="staffing-count">16–18 FTEs</div>
+              </div>
+            </div>
+            <div style="background:var(--ocean-faint);border-radius:8px;padding:12px;font-size:12px;color:var(--ocean-dark)">
+              💡 <strong>Cost saving alert:</strong> Proper staffing alignment could recover ~₹8.4L in overstaffing losses this off-season.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Occupancy Heatmap -->
+      <div class="card" id="section-heatmap" style="margin-bottom:24px">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📅 Annual Occupancy Heatmap</div>
+            <div class="card-subtitle">2025 — actual + 90-day forecast</div>
+          </div>
+          <div style="display:flex;gap:12px;font-size:11px;font-weight:600;align-items:center">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;background:#bee3f8;display:inline-block"></span>&lt;30%</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;background:#4299e1;display:inline-block"></span>30–59%</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;background:var(--ocean);display:inline-block"></span>60–79%</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:2px;background:var(--coral);display:inline-block"></span>80%+</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="heatmap-grid" id="heatmap"></div>
+        </div>
+      </div>
+
+      <!-- Revenue Chart -->
+      <div class="card" id="section-revenue" style="margin-bottom:100px">
+        <div class="card-header">
+          <div>
+            <div class="card-title">📈 Monthly Revenue & ADR Trend</div>
+            <div class="card-subtitle">Full-year performance · The Coastal Pearl 2025</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <canvas id="revenueChart" height="140"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── AI Chat Panel ────────────────────────────────────────────────────── -->
+  <div id="chat-panel">
+    <div class="chat-header" onclick="toggleChat()">
+      <div class="chat-header-left">
+        <div class="ai-avatar">🤖</div>
+        <div>
+          <div class="chat-title">TideSync AI Assistant</div>
+          <div class="chat-status" id="chat-status">Ask me anything about your data</div>
+        </div>
+      </div>
+      <button class="chat-toggle" id="toggle-btn">−</button>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg ai">
+        👋 Hi! I'm your <strong>TideSync AI</strong> assistant. I have full access to The Coastal Pearl's 2025 booking data, events calendar, weather patterns, and 90-day forecast.<br><br>
+        Try one of the suggested questions below, or type your own!
+      </div>
+    </div>
+
+    <div class="chat-suggestions" id="suggestions">
+      <span class="suggestion-chip" onclick="askSuggestion(this)">What was my best revenue month?</span>
+      <span class="suggestion-chip" onclick="askSuggestion(this)">When should I raise my room rates?</span>
+      <span class="suggestion-chip" onclick="askSuggestion(this)">What events will drive demand?</span>
+      <span class="suggestion-chip" onclick="askSuggestion(this)">How many staff do I need next month?</span>
+      <span class="suggestion-chip" onclick="askSuggestion(this)">What's my average occupancy rate?</span>
+      <span class="suggestion-chip" onclick="askSuggestion(this)">Are there slow periods I should prepare for?</span>
+      <span class="suggestion-chip" onclick="askSuggestion(this)">How does weather affect my bookings?</span>
+    </div>
+
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-input" type="text"
+        placeholder="Ask about demand, pricing, staffing..."
+        onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button class="chat-send" id="send-btn" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+
+  <script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const GEMINI_MODEL = 'gemini-3.8-flash';
+  const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+  const SYSTEM_CONTEXT = `You are TideSync AI, an intelligent demand forecasting assistant for independent boutique hotels, guesthouses, and local excursion operators in seasonal travel destinations.
+
+You have access to the following dataset for "The Coastal Pearl" — a 50-room boutique hotel in a coastal tourism destination:
+
+=== MONTHLY BOOKING DATA (Jan–Dec 2025) ===
+Month       | Occupancy% | ADR (₹) | RevPAR (₹) | Total Revenue (₹)
+January     |    45%     |  4,200  |   1,890    |   28,35,000
+February    |    62%     |  5,100  |   3,162    |   47,43,000
+March       |    78%     |  5,800  |   4,524    |   67,86,000
+April       |    85%     |  6,400  |   5,440    |   81,60,000
+May         |    40%     |  3,600  |   1,440    |   21,60,000
+June        |    22%     |  2,800  |     616    |    9,24,000
+July        |    18%     |  2,600  |     468    |    7,02,000
+August      |    20%     |  2,700  |     540    |    8,10,000
+September   |    28%     |  3,000  |     840    |   12,60,000
+October     |    55%     |  4,800  |   2,640    |   39,60,000
+November    |    72%     |  5,500  |   3,960    |   59,40,000
+December    |    90%     |  7,200  |   6,480    |   97,20,000
+
+=== LOCAL EVENTS CALENDAR ===
+- Jan 15–20: Coastal Music Festival (+22% demand spike)
+- Feb 14: Valentine's Weekend (+35% demand)
+- Mar 20–Apr 5: Spring Break / School Holidays (+40% demand)
+- Apr 10–14: Coastal Food & Culture Festival (+28% demand)
+- Oct 2–5: Local Heritage Walk Week (+15% demand)
+- Oct 24–Nov 5: Diwali Holiday Season (+45% demand)
+- Dec 20–Jan 5: Christmas & New Year Peak (+60% demand)
+
+=== WEATHER DATA ===
+- Best Beach Months: October–April (avg 28°C, sunny)
+- Monsoon/Off-Season: June–September (heavy rain, avg 32°C humid)
+- Shoulder Season: May, October
+- Avg Beach Days: Jan(28), Feb(26), Mar(25), Apr(22), May(15), Jun(3), Jul(1), Aug(2), Sep(5), Oct(20), Nov(25), Dec(27)
+
+=== FLIGHT SEARCH TRENDS (Index 0–100) ===
+Jan(72), Feb(65), Mar(88), Apr(91), May(45), Jun(20), Jul(15), Aug(18), Sep(30), Oct(62), Nov(78), Dec(95)
+
+=== 30/60/90-DAY DEMAND FORECAST (from Oct 2025) ===
+30 days: Occupancy 58%, ADR ₹5,200 | Key driver: Diwali | Action: Raise rates 15–20% for Oct 24–Nov 5
+60 days: Occupancy 68% avg, ADR ₹5,800 | Driver: Post-monsoon recovery + Diwali
+90 days: Occupancy 82% avg, ADR ₹6,400 | Driver: Peak winter + Christmas/New Year
+
+=== PRICING RECOMMENDATIONS ===
+- Oct 24–Nov 5 (Diwali): ADR ₹7,500 (+56% vs base) 🔴 URGENT
+- Dec 20–Jan 5 (Peak): ADR ₹9,000–₹11,000 🔴 URGENT
+- Nov 6–Dec 19: Gradually increase ₹5,500 → ₹7,000
+
+=== STAFFING RECOMMENDATIONS ===
+Current: 18 FTEs
+- Oct 2–23: 18 FTEs
+- Oct 24–Nov 5 (Diwali): 24 FTEs (+6 temporary)
+- Nov 6–Dec 19: 20–22 FTEs
+- Dec 20–Jan 5 (Peak): 28 FTEs (+10 temporary)
+- Jan 6–Mar 31: 16–18 FTEs
+
+=== KEY METRICS ===
+- Total 2025 Revenue: ₹4.8 Crore
+- Best Revenue Month: December (₹97,20,000)
+- Worst Revenue Month: July (₹7,02,000)
+- Average Annual Occupancy: 51.3%
+- Average ADR: ₹4,492
+- Average RevPAR: ₹2,633
+- Estimated under-pricing losses (Jan–Apr): ~₹18,00,000
+- Estimated overstaffing losses (Jun–Sep): ~₹8,40,000
+
+Always respond as TideSync AI. Be specific, data-driven, and actionable. Use bullet points and clear structure. Format currency as ₹. Keep responses concise but insightful.`;
+
+  // ── API key management ──────────────────────────────────────────────────────
+  let GEMINI_API_KEY = localStorage.getItem('tidesync_api_key') || '';
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('current-date').textContent =
+      new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+
+    buildHeatmap();
+    buildForecastChart();
+    buildRevenueChart();
+
+    if (GEMINI_API_KEY) {
+      document.getElementById('api-modal').style.display = 'none';
+    } else {
+      document.getElementById('api-key-input').focus();
+    }
+  });
+
+  function saveKey() {
+    const val = document.getElementById('api-key-input').value.trim();
+    const errEl = document.getElementById('modal-error');
+
+    if (!val) {
+      errEl.style.display = 'block';
+      return;
+    }
+
+    errEl.style.display = 'none';
+    GEMINI_API_KEY = val;
+    localStorage.setItem('tidesync_api_key', val);
+    document.getElementById('api-modal').style.display = 'none';
+  }
+
+  // ── Heatmap ─────────────────────────────────────────────────────────────────
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const occupancy = [45, 62, 78, 85, 40, 22, 18, 20, 28, 55, 72, 90];
+
+  function occClass(v) {
+    if (v >= 80) return 'occ-peak';
+    if (v >= 60) return 'occ-high';
+    if (v >= 30) return 'occ-mid';
+    return 'occ-low';
+  }
+
+  function buildHeatmap() {
+    const heatmap = document.getElementById('heatmap');
+    months.forEach((m, i) => {
+      const div = document.createElement('div');
+      div.className = 'heatmap-month';
+      div.innerHTML = `
+        <div class="heatmap-label">${m}</div>
+        <div class="heatmap-cell ${occClass(occupancy[i])}" title="${occupancy[i]}% occupancy">${occupancy[i]}%</div>
+      `;
+      heatmap.appendChild(div);
+    });
+  }
+
+  // ── Forecast Chart ──────────────────────────────────────────────────────────
+  const forecastData = {
+    30: {
+      labels: ['Oct W1','Oct W2','Oct W3','Oct W4','Nov W1'],
+      actual:   [52, 54, 56, null, null],
+      forecast: [null, null, 56, 68, 74]
+    },
+    60: {
+      labels: ['Oct W1','Oct W2','Oct W3','Oct W4','Nov W1','Nov W2','Nov W3','Nov W4','Dec W1'],
+      actual:   [52, 54, 56, null, null, null, null, null, null],
+      forecast: [null, null, 56, 68, 74, 71, 75, 80, 84]
+    },
+    90: {
+      labels: ['Oct W1','Oct W2','Oct W3','Oct W4','Nov W1','Nov W2','Nov W3','Nov W4','Dec W1','Dec W2','Dec W3','Dec W4','Jan W1'],
+      actual:   [52, 54, 56, null, null, null, null, null, null, null, null, null, null],
+      forecast: [null, null, 56, 68, 74, 71, 75, 80, 84, 88, 92, 95, 90]
+    }
+  };
+
+  let forecastChart;
+
+  function buildForecastDataset(days) {
+    const d = forecastData[days];
+    return {
+      labels: d.labels,
+      datasets: [
+        {
+          label: 'Actual Occupancy %',
+          data: d.actual,
+          borderColor: '#1B3B6F',
+          backgroundColor: 'rgba(27,59,111,.08)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#1B3B6F',
+          tension: 0.35,
+          fill: true,
+          spanGaps: false
+        },
+        {
+          label: 'AI Forecast %',
+          data: d.forecast,
+          borderColor: '#F97068',
+          backgroundColor: 'rgba(249,112,104,.08)',
+          borderWidth: 2.5,
+          borderDash: [6, 3],
+          pointRadius: 4,
+          pointBackgroundColor: '#F97068',
+          tension: 0.35,
+          fill: true,
+          spanGaps: false
+        }
+      ]
+    };
+  }
+
+  function buildForecastChart() {
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    forecastChart = new Chart(ctx, {
+      type: 'line',
+      data: buildForecastDataset(30),
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'Open Sans', size: 12 }, padding: 16 } },
+          tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.raw}%` } }
+        },
+        scales: {
+          y: {
+            min: 0, max: 100,
+            ticks: { callback: v => v + '%', font: { family: 'Open Sans', size: 11 } },
+            grid: { color: '#f0f0f0' }
+          },
+          x: { ticks: { font: { family: 'Open Sans', size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function switchForecast(days, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    forecastChart.data = buildForecastDataset(days);
+    forecastChart.update('active');
+  }
+
+  // ── Revenue Chart ───────────────────────────────────────────────────────────
+  function buildRevenueChart() {
+    const revCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revCtx, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: 'Revenue (₹ Lakhs)',
+            data: [28.35, 47.43, 67.86, 81.60, 21.60, 9.24, 7.02, 8.10, 12.60, 39.60, 59.40, 97.20],
+            backgroundColor: occupancy.map(o =>
+              o >= 80 ? 'rgba(249,112,104,.85)' : o >= 60 ? 'rgba(27,59,111,.8)' : 'rgba(27,59,111,.35)'
+            ),
+            borderRadius: 6,
+            yAxisID: 'y'
+          },
+          {
+            label: 'ADR (₹ thousands)',
+            data: [4.2, 5.1, 5.8, 6.4, 3.6, 2.8, 2.6, 2.7, 3.0, 4.8, 5.5, 7.2],
+            type: 'line',
+            borderColor: '#F97068',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: '#F97068',
+            tension: 0.4,
+            yAxisID: 'y2'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'Open Sans', size: 12 }, padding: 16 } },
+          tooltip: {
+            callbacks: {
+              label: (c) => {
+                if (c.dataset.label.includes('Revenue')) return ` Revenue: ₹${c.raw}L`;
+                return ` ADR: ₹${(c.raw * 1000).toLocaleString('en-IN')}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            position: 'left',
+            ticks: { callback: v => '₹' + v + 'L', font: { family: 'Open Sans', size: 11 } },
+            grid: { color: '#f0f0f0' }
+          },
+          y2: {
+            position: 'right',
+            ticks: { callback: v => '₹' + (v * 1000).toLocaleString('en-IN'), font: { family: 'Open Sans', size: 11 } },
+            grid: { display: false }
+          },
+          x: { ticks: { font: { family: 'Open Sans', size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Chat Logic ──────────────────────────────────────────────────────────────
+  let chatOpen = true;
+  let conversationHistory = [];
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById('chat-panel').classList.toggle('collapsed', !chatOpen);
+    document.getElementById('toggle-btn').textContent = chatOpen ? '−' : '+';
+  }
+
+  function openChat() {
+    chatOpen = true;
+    document.getElementById('chat-panel').classList.remove('collapsed');
+    document.getElementById('toggle-btn').textContent = '−';
+    setTimeout(() => document.getElementById('chat-input').focus(), 300);
+  }
+
+  function appendMessage(text, role) {
+    const msgs = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    if (role === 'ai') {
+      div.innerHTML = marked.parse(text);
+    } else {
+      div.textContent = text;
+    }
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function showLoading() {
+    const msgs = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'msg-loading';
+    div.id = 'loading-indicator';
+    div.innerHTML = '<span></span><span></span><span></span>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function hideLoading() {
+    const el = document.getElementById('loading-indicator');
+    if (el) el.remove();
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    await askQuestion(msg);
+  }
+
+  function askSuggestion(el) {
+    const msg = el.textContent;
+    document.getElementById('suggestions').style.display = 'none';
+    askQuestion(msg);
+  }
+
+  async function askQuestion(msg) {
+    if (!msg) return;
+
+    if (!GEMINI_API_KEY) {
+      document.getElementById('api-modal').style.display = 'flex';
+      return;
+    }
+
+    appendMessage(msg, 'user');
+    showLoading();
+
+    const sendBtn = document.getElementById('send-btn');
+    sendBtn.disabled = true;
+    document.getElementById('chat-status').textContent = 'Thinking...';
+
+    // Build conversation history
+    conversationHistory.push({ role: 'user', parts: [{ text: msg }] });
+
+    try {
+      const body = {
+        contents: conversationHistory,
+        systemInstruction: { parts: [{ text: SYSTEM_CONTEXT }] },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
+      };
+
+      const res = await fetch(
+        `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }
+      );
+
+      const data = await res.json();
+      hideLoading();
+
+      if (data.error) {
+        if (data.error.code === 400 || data.error.code === 403) {
+          localStorage.removeItem('tidesync_api_key');
+          GEMINI_API_KEY = '';
+          document.getElementById('api-modal').style.display = 'flex';
+          conversationHistory.pop();
+          appendMessage('⚠️ API key error: ' + data.error.message, 'ai');
+        } else {
+          appendMessage('⚠️ Error: ' + data.error.message, 'ai');
+        }
+        return;
+      }
+
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
+      conversationHistory.push({ role: 'model', parts: [{ text: reply }] });
+      appendMessage(reply, 'ai');
+
+    } catch (err) {
+      hideLoading();
+      appendMessage('⚠️ Network error. Check your connection and try again.', 'ai');
+      conversationHistory.pop();
+    } finally {
+      sendBtn.disabled = false;
+      document.getElementById('chat-status').textContent = 'Ask me anything about your data';
+    }
+  }
+  // ── Sidebar Navigation ──────────────────────────────────────────────────────
+  function initNav() {
+    const mainEl = document.querySelector('.main');
+    const navItems = document.querySelectorAll('.nav-item[data-section]');
+
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const target = item.dataset.section;
+
+        // Special actions
+        if (target === 'chat') {
+          openChat();
+          setNavActive(item);
+          return;
+        }
+
+        if (target === 'settings') {
+          showSettings();
+          setNavActive(item);
+          return;
+        }
+
+        // Scroll to section
+        const el = document.getElementById(target);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setNavActive(item);
+        }
+      });
+    });
+
+    // Highlight nav item on scroll
+    mainEl.addEventListener('scroll', () => {
+      const sections = [
+        'section-kpi', 'section-forecast', 'section-pricing',
+        'section-staffing', 'section-events', 'section-heatmap', 'section-revenue'
+      ];
+      let current = sections[0];
+
+      sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 100) current = id;
+      });
+
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.section === current);
+      });
+    }, { passive: true });
+  }
+
+  function setNavActive(clicked) {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    clicked.classList.add('active');
+  }
+
+  // ── Settings modal (reset API key) ─────────────────────────────────────────
+  function showSettings() {
+    const confirmed = confirm(
+      'Settings\n\n• Reset API key: Click OK to clear your saved key and re-enter it.\n• Cancel to dismiss.'
+    );
+    if (confirmed) {
+      localStorage.removeItem('tidesync_api_key');
+      GEMINI_API_KEY = '';
+      conversationHistory = [];
+      document.getElementById('api-key-input').value = '';
+      document.getElementById('api-modal').style.display = 'flex';
+    }
+  }
+
+  // Init nav after DOM ready
+  document.addEventListener('DOMContentLoaded', () => { initNav(); });
+  </script>
+</body>
+</html>
